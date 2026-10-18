@@ -1,0 +1,73 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: boutique-db-restore
+  namespace: boutique
+spec:
+  backoffLimit: 3
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: restore
+          image: postgres:15-alpine
+          command:
+            - sh
+            - -c
+            - |
+              echo "Waiting for Postgres..."
+              until pg_isready -h boutique-postgres -U postgres; do
+                sleep 2
+              done
+
+              echo "Restoring dump..."
+              psql -h boutique-postgres -U postgres -f /dump/boutique_full.sql
+
+              echo "Creating auth_db schema..."
+              psql -h boutique-postgres -U postgres -d auth_db -c "
+              CREATE TABLE IF NOT EXISTS users (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                email VARCHAR(255) UNIQUE NOT NULL,
+                password_hash VARCHAR(255) NOT NULL,
+                first_name VARCHAR(100),
+                last_name VARCHAR(100),
+                role VARCHAR(50) DEFAULT 'customer',
+                created_at TIMESTAMP DEFAULT NOW(),
+                updated_at TIMESTAMP DEFAULT NOW()
+              );"
+
+              echo "Creating orders_db schema..."
+              psql -h boutique-postgres -U postgres -d orders_db -c "
+              CREATE TABLE IF NOT EXISTS orders (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                user_id VARCHAR(255) NOT NULL,
+                total_amount DECIMAL(10,2) NOT NULL,
+                status VARCHAR(50) DEFAULT 'pending',
+                shipping_address JSONB,
+                payment_status VARCHAR(50) DEFAULT 'pending',
+                created_at TIMESTAMP DEFAULT NOW(),
+                updated_at TIMESTAMP DEFAULT NOW()
+              );
+              CREATE TABLE IF NOT EXISTS order_items (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                order_id UUID REFERENCES orders(id) ON DELETE CASCADE,
+                product_id VARCHAR(255) NOT NULL,
+                quantity INTEGER NOT NULL,
+                price DECIMAL(10,2) NOT NULL,
+                created_at TIMESTAMP DEFAULT NOW()
+              );"
+
+              echo "Restore completed."
+          env:
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: boutique-secrets
+                  key: POSTGRES_PASSWORD
+          volumeMounts:
+            - name: dump
+              mountPath: /dump
+      volumes:
+        - name: dump
+          configMap:
+            name: boutique-db-dump

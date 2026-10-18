@@ -1,0 +1,19 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: boutique
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: 'https://github.com/vishakhasadhwani/DevOps-Practice-Guide.git'
+    targetRevision: main
+    path: gitops
+  destination:
+    server: 'https://kubernetes.default.svc'
+    namespace: boutique
+  syncPolicy: {}
+  # syncPolicy:
+  #   automated:
+  #     prune: true
+  #     selfHeal: true

@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: product-service
+  namespace: boutique
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: product-service
+  template:
+    metadata:
+      labels:
+        app: product-service
+    spec:
+      containers:
+        - name: product-service
+          image: <AWS_ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/product-service:1ebec3729cd10fe1eeac6f0858fba58e2da07956
+          ports:
+            - containerPort: 3003
+          env:
+            - name: NODE_ENV
+              value: development
+            - name: PORT
+              value: "3003"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: boutique-secrets
+                  key: PRODUCTS_DB_URL
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: product-service
+  namespace: boutique
+spec:
+  selector:
+    app: product-service
+  ports:
+    - protocol: TCP
+      port: 3003
+      targetPort: 3003
+  type: ClusterIP

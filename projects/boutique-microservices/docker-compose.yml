@@ -1,0 +1,214 @@
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: boutique-postgres
+    environment:
+      POSTGRES_DB: boutique_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres123
+      POSTGRES_MULTIBYTE: auth_db,products_db,orders_db,users_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init:/docker-entrypoint-initdb.d
+    networks:
+      - boutique-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+
+
+  # Prometheus
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: boutique-prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+    networks:
+      - boutique-network
+    restart: unless-stopped
+
+  # Grafana
+  grafana:
+    image: grafana/grafana:latest
+    container_name: boutique-grafana
+    ports:
+      - "3007:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - grafana_data:/var/lib/grafana
+    networks:
+      - boutique-network
+    depends_on:
+      - prometheus
+    restart: unless-stopped
+
+
+
+  # API Gateway
+  gateway:
+    build:
+      context: ./backend/services/gateway
+      dockerfile: Dockerfile
+    container_name: boutique-gateway
+    ports:
+      - "3001:3001"
+    environment:
+      - NODE_ENV=development
+      - PORT=3001
+      - AUTH_SERVICE_URL=http://auth:3002
+      - PRODUCTS_SERVICE_URL=http://product-service:3003
+      - ORDER_SERVICE_URL=http://order-service:3004
+      - ORDERS_SERVICE_URL=http://orders:3005
+      - USER_SERVICE_URL=http://user-service:3006
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - boutique-network
+    restart: unless-stopped
+
+  # Auth Service
+  auth:
+    build:
+      context: ./backend/services/auth
+      dockerfile: Dockerfile
+    container_name: boutique-auth
+    ports:
+      - "3002:3002"
+    environment:
+      - NODE_ENV=development
+      - PORT=3002
+      - DATABASE_URL=postgresql://postgres:postgres123@postgres:5432/auth_db
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - boutique-network
+    restart: unless-stopped
+
+  # Product Service
+  product-service:
+    build:
+      context: ./backend/services/product-service
+      dockerfile: Dockerfile
+    container_name: boutique-products
+    ports:
+      - "3003:3003"
+    environment:
+      - NODE_ENV=development
+      - PORT=3003
+      - DATABASE_URL=postgresql://postgres:postgres123@postgres:5432/products_db
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - boutique-network
+    restart: unless-stopped
+
+  # Order Service
+  order-service:
+    build:
+      context: ./backend/services/order-service
+      dockerfile: Dockerfile
+    container_name: boutique-orders
+    ports:
+      - "3004:3004"
+    environment:
+      - NODE_ENV=development
+      - PORT=3004
+      - DATABASE_URL=postgresql://postgres:postgres123@postgres:5432/orders_db
+      - AUTH_SERVICE_URL=http://auth:3002
+      - PRODUCT_SERVICE_URL=http://product-service:3003
+    depends_on:
+      postgres:
+        condition: service_healthy
+      auth:
+        condition: service_started
+      product-service:
+        condition: service_started
+    networks:
+      - boutique-network
+    restart: unless-stopped
+
+  # Orders Service (Order Management)
+  orders:
+    build:
+      context: ./backend/services/orders
+      dockerfile: Dockerfile
+    container_name: boutique-order-management
+    ports:
+      - "3005:3005"
+    environment:
+      - NODE_ENV=development
+      - PORT=3005
+      - DATABASE_URL=postgresql://postgres:postgres123@postgres:5432/orders_db
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - boutique-network
+    restart: unless-stopped
+
+  # User Service
+  user-service:
+    build:
+      context: ./backend/services/user-service
+      dockerfile: Dockerfile
+    container_name: boutique-users
+    ports:
+      - "3006:3006"
+    environment:
+      - NODE_ENV=development
+      - PORT=3006
+      - DATABASE_URL=postgresql://postgres:postgres123@postgres:5432/users_db
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - boutique-network
+    restart: unless-stopped
+
+  # Frontend
+  frontend:
+    image: nginx:alpine
+    container_name: boutique-frontend
+    volumes:
+      - ./frontend/build:/usr/share/nginx/html
+      - ./frontend/nginx.conf:/etc/nginx/conf.d/default.conf
+    ports:
+      - "3000:80"
+    environment:
+      - REACT_APP_API_URL=http://gateway:3001/api
+    depends_on:
+      - gateway
+    networks:
+      - boutique-network
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+  prometheus_data:
+    driver: local
+  grafana_data:
+    driver: local
+
+networks:
+  boutique-network:
+    driver: bridge

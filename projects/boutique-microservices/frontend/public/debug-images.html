@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Debug Images</title>
+</head>
+<body>
+    <h1>Image Debug Test</h1>
+    <h2>Silk Evening Gown should show:</h2>
+    <img src="/images/luxury-watch.svg" alt="Silk Evening Gown" style="border: 1px solid red; width: 200px; height: 200px;">
+    
+    <h2>Leather Handbag should show:</h2>
+    <img src="/images/designer-bag.svg" alt="Leather Handbag" style="border: 1px solid red; width: 200px; height: 200px;">
+    
+    <h2>Designer Heels should show:</h2>
+    <img src="/images/shoes.svg" alt="Designer Heels" style="border: 1px solid red; width: 200px; height: 200px;">
+    
+    <h2>Raw API Test:</h2>
+    <div id="api-result"></div>
+    
+    <script>
+        // Test the API directly
+        fetch('http://localhost:3000/api/products')
+            .then(response => response.json())
+            .then(data => {
+                const products = data.data.products;
+                console.log('API Products:', products);
+                
+                products.forEach(product => {
+                    const div = document.createElement('div');
+                    div.innerHTML = `
+                        <h3>${product.name}</h3>
+                        <p>Image URL: ${product.imageUrl}</p>
+                        <img src="${product.imageUrl}" alt="${product.name}" style="border: 1px solid blue; width: 100px; height: 100px;">
+                        <hr>
+                    `;
+                    document.getElementById('api-result').appendChild(div);
+                });
+            })
+            .catch(error => console.error('API Error:', error));
+    </script>
+</body>
+</html>

@@ -1,0 +1,27 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: boutique
+
+resources:
+  - namespace.yml
+  - secrets.yml
+  - k8s/database/statefulset.yml
+  - k8s/database/service.yml
+  - k8s/backend/gateway.yml
+  - k8s/backend/service-monitor.yml
+  - k8s/backend/auth.yml
+  - k8s/backend/product-service.yml
+  - k8s/backend/order-service.yml
+  - k8s/backend/orders.yml
+  - k8s/backend/user-service.yml
+  - k8s/frontend/deployment.yml
+  - k8s/grafana-dashboard.yml
+
+configMapGenerator:
+  - name: boutique-db-dump
+    files:
+      - k8s/database/boutique_full.sql
+
+generatorOptions:
+  disableNameSuffixHash: true

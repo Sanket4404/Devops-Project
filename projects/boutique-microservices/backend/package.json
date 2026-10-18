@@ -1,0 +1,39 @@
+{
+  "name": "boutique-backend",
+  "version": "1.0.0",
+  "description": "Backend microservices for boutique application",
+  "scripts": {
+    "dev:services": "concurrently \"npm run dev:gateway\" \"npm run dev:auth\" \"npm run dev:products\" \"npm run dev:orders\" \"npm run dev:users\"",
+    "dev:gateway": "cd services/gateway && npm run dev",
+    "dev:auth": "cd services/auth && npm run dev",
+    "dev:products": "cd services/product-service && npm run dev",
+    "dev:orders": "cd services/orders && npm run dev",
+    "dev:users": "cd services/user-service && npm run dev",
+    "build": "cd services/gateway && npm run build && cd ../auth && npm run build && cd ../product-service && npm run build && cd ../orders && npm run build && cd ../user-service && npm run build",
+    "test": "cd services/gateway && npm test && cd ../auth && npm test && cd ../product-service && npm test && cd ../orders && npm test && cd ../user-service && npm test"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "helmet": "^7.1.0",
+    "dotenv": "^16.3.1",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.11.3",
+    "redis": "^4.6.10",
+    "axios": "^1.6.2",
+    "winston": "^3.11.0",
+    "joi": "^17.11.0"
+  },
+  "devDependencies": {
+    "@types/express": "^4.17.21",
+    "@types/cors": "^2.8.17",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/jsonwebtoken": "^9.0.5",
+    "@types/pg": "^8.10.9",
+    "typescript": "^5.2.2",
+    "nodemon": "^3.0.2",
+    "ts-node": "^10.9.1",
+    "concurrently": "^8.2.2"
+  }
+}
